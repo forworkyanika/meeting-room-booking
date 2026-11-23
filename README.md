@@ -22,7 +22,7 @@ A full-stack meeting room booking app: employees book rooms on an interactive ca
 Requirements: PHP 8.3+ (with `pdo_pgsql`), Composer, Node 20+, PostgreSQL 14+.
 
 ```bash
-git clone <repo-url> meeting-room-booking && cd meeting-room-booking
+git clone https://github.com/forworkyanika/meeting-room-booking.git && cd meeting-room-booking
 composer install
 npm install
 
