@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Enums\BookingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Support\AppTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 
 /**
  * Feeds FullCalendar. FullCalendar asks for ?start=...&end=... of the visible range
@@ -28,7 +28,7 @@ class CalendarController extends Controller
         $events = Booking::query()
             ->with(['room', 'user'])
             ->active()
-            ->overlapping(Carbon::parse($request->input('start')), Carbon::parse($request->input('end')))
+            ->overlapping(AppTime::parse($request->input('start')), AppTime::parse($request->input('end')))
             ->when($request->integer('room_id'), fn ($q, $roomId) => $q->where('room_id', $roomId))
             ->orderBy('start_time')
             ->get()

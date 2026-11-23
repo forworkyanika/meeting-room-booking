@@ -8,10 +8,10 @@ use App\Exceptions\InvalidBookingTransitionException;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\User;
+use App\Support\AppTime;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -47,8 +47,8 @@ class BookingService
      */
     public function create(User $user, array $data): Booking
     {
-        $start = Carbon::parse($data['start_time']);
-        $end = Carbon::parse($data['end_time']);
+        $start = AppTime::parse($data['start_time']);
+        $end = AppTime::parse($data['end_time']);
 
         return $this->guardAgainstRace(fn () => DB::transaction(function () use ($user, $data, $start, $end) {
             // Lock the room row so two concurrent requests for the same room run the

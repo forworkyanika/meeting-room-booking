@@ -1,58 +1,92 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Meeting Room Booking System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A full-stack meeting room booking app: employees book rooms on an interactive calendar, the system blocks double bookings, and admins approve or reject requests.
 
-## About Laravel
+**Stack:** PHP 8 · Laravel 13 · PostgreSQL 17 · Vue 3 · Pinia · Vue Router · Bootstrap 5 · FullCalendar 6 · Vite · Sanctum · PHPUnit
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Interactive calendar.** Month, week, day, and list views. Drag across free time to book, click a booking for details. Filter by room. Pending bookings show with a dashed outline.
+- **Booking conflict detection** at three layers:
+  1. The booking form checks availability live (`GET /api/availability`) and disables **Book** when the time clashes.
+  2. `BookingService` re-checks inside a transaction, holding a row lock on the room, and returns `409 Conflict` with the clashing bookings.
+  3. A PostgreSQL `EXCLUDE USING gist` constraint makes overlapping active bookings impossible at the database level, even under a race.
+- **Admin approval workflow.** `pending → approved | rejected`, and `pending/approved → cancelled`. A rejection requires a reason, which the requester sees. Admins' own bookings are approved automatically.
+- **Role-based access.** Employees see and cancel only their own bookings. Admin routes are protected by a gate (`can:admin`).
+- **Room management.** Admins can create, edit, deactivate, and delete rooms. Rooms with booking history can only be deactivated, not deleted.
+- **Validation.** Bookings must start in the future and last between 15 minutes and 8 hours, attendees cannot exceed room capacity, and inactive rooms cannot be booked.
+- **Responsive UI.** Built with Bootstrap 5. The calendar switches to list view on phones.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Quick start
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Requirements: PHP 8.3+ (with `pdo_pgsql`), Composer, Node 20+, PostgreSQL 14+.
 
 ```bash
-composer require laravel/boost --dev
+git clone <repo-url> meeting-room-booking && cd meeting-room-booking
+composer install
+npm install
 
-php artisan boost:install
+cp .env.example .env            # then set DB_USERNAME / DB_PASSWORD
+php artisan key:generate
+
+createdb meeting_room_booking
+php artisan migrate --seed      # creates tables + demo data
+
+npm run build                   # or `npm run dev` for hot reload
+php artisan serve               # http://localhost:8000
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+| Demo account | Email | Password |
+|---|---|---|
+| Admin | `admin@example.com` | `password` |
+| Employee | `user@example.com` | `password` |
+| Employee | `bob@example.com` | `password` |
 
-## Contributing
+### Tests
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Feature tests run against a real PostgreSQL database, so the exclusion constraint is exercised too:
 
-## Code of Conduct
+```bash
+createdb meeting_room_booking_test
+php artisan test
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## REST API
 
-## Security Vulnerabilities
+All endpoints are under `/api` and return JSON. Authenticate with `Authorization: Bearer <token>` from `/login`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Method | Endpoint | Who | Purpose |
+|---|---|---|---|
+| POST | `/register`, `/login` | public | Get a token |
+| POST | `/logout` · GET `/me` | user | Revoke token · current user |
+| GET | `/rooms` · `/rooms/{id}` | user | List / show rooms (`?min_capacity=`) |
+| GET | `/calendar?start=&end=&room_id=` | user | Events for FullCalendar |
+| GET | `/availability?room_id=&start_time=&end_time=` | user | `{ available, conflicts[] }` |
+| GET | `/bookings` | user | Own bookings (`?when=upcoming\|past&status=`); admin: `?scope=all` |
+| POST | `/bookings` | user | Create (`201`, `409` on clash, `422` on validation) |
+| GET | `/bookings/{id}` | owner/admin | Show |
+| PATCH | `/bookings/{id}/cancel` | owner/admin | Cancel an upcoming booking |
+| PATCH | `/admin/bookings/{id}/approve` | admin | Approve (optional `note`) |
+| PATCH | `/admin/bookings/{id}/reject` | admin | Reject (`note` required) |
+| GET | `/admin/dashboard` | admin | Counts for the admin page |
+| POST/PUT/DELETE | `/admin/rooms[/{id}]` | admin | Manage rooms |
 
-## License
+## Project structure
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```
+app/
+  Enums/                BookingStatus, UserRole
+  Exceptions/           BookingConflictException (409), InvalidBookingTransitionException (422)
+  Http/Controllers/Api/ thin controllers: validate → call service → return resource
+  Http/Requests/        validation rules (FormRequest)
+  Http/Resources/       JSON shape of each model
+  Models/               User, Room, Booking (+ scopes active(), overlapping())
+  Policies/             BookingPolicy (view / cancel)
+  Services/             BookingService: conflict check + state transitions
+database/migrations/    schema incl. the PostgreSQL EXCLUDE constraint
+resources/js/           Vue SPA (pages/, components/, stores/, router/, api/)
+routes/api.php          REST routes · routes/web.php serves the SPA shell
+tests/Feature/          conflict, approval workflow, auth
+```
+
+A detailed walkthrough in Thai, covering how each part works, the tech stack, and PHP basics, is in [docs/HOW-IT-WORKS.th.md](docs/HOW-IT-WORKS.th.md).

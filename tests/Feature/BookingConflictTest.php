@@ -140,4 +140,19 @@ class BookingConflictTest extends TestCase
 
         $this->book('12:00', '13:00')->assertUnprocessable()->assertJsonValidationErrors('room_id');
     }
+
+    #[Test]
+    public function utc_timestamps_from_the_browser_are_stored_in_the_app_timezone(): void
+    {
+        // 03:00Z is 10:00 in Bangkok, which clashes with the 10:00-11:00 booking.
+        $this->postJson('/api/bookings', [
+            'room_id' => $this->room->id, 'title' => 'UTC client', 'attendees' => 1,
+            'start_time' => "{$this->day}T03:30:00.000Z", 'end_time' => "{$this->day}T04:30:00.000Z",
+        ])->assertStatus(409);
+
+        $this->postJson('/api/bookings', [
+            'room_id' => $this->room->id, 'title' => 'UTC client', 'attendees' => 1,
+            'start_time' => "{$this->day}T05:00:00.000Z", 'end_time' => "{$this->day}T06:00:00.000Z",
+        ])->assertCreated()->assertJsonPath('start_time', "{$this->day}T12:00:00+07:00");
+    }
 }
