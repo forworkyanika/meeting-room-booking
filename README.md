@@ -1,8 +1,22 @@
 # Meeting Room Booking System
 
+[![CI](https://github.com/forworkyanika/meeting-room-booking/actions/workflows/ci.yml/badge.svg)](https://github.com/forworkyanika/meeting-room-booking/actions/workflows/ci.yml)
+
 A full-stack meeting room booking app: employees book rooms on an interactive calendar, the system blocks double bookings, and admins approve or reject requests.
 
 **Stack:** PHP 8 · Laravel 13 · PostgreSQL 17 · Vue 3 · Pinia · Vue Router · Bootstrap 5 · FullCalendar 6 · Vite · Sanctum · PHPUnit
+
+![Room calendar](docs/screenshots/calendar.png)
+
+## Screenshots
+
+| Live conflict warning while booking | Admin approval queue |
+|---|---|
+| ![Booking form showing a clash](docs/screenshots/conflict-warning.png) | ![Admin approvals with stats](docs/screenshots/admin-approvals.png) |
+
+| Rooms | Mobile |
+|---|---|
+| ![Room cards](docs/screenshots/rooms.png) | <img src="docs/screenshots/mobile.png" alt="Calendar on a phone" width="260"> |
 
 ## Features
 
